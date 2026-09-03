@@ -73,6 +73,7 @@ class Hikka(id: Long) : BaseTracker(id, "Hikka"), DeletableTracker {
     override suspend fun update(
         track: Track,
         didWatchEpisode: Boolean,
+        watchedAt: Long,
     ): Track {
         if (track.status != COMPLETED) {
             if (didWatchEpisode) {

@@ -69,7 +69,7 @@ class MyAnimeList(id: Long) : BaseTracker(id, "MyAnimeList"), DeletableTracker {
         return api.updateItem(track)
     }
 
-    override suspend fun update(track: Track, didWatchEpisode: Boolean): Track {
+    override suspend fun update(track: Track, didWatchEpisode: Boolean, watchedAt: Long): Track {
         if (track.status != COMPLETED) {
             if (didWatchEpisode) {
                 if (track.last_episode_seen.toLong() == track.total_episodes && track.total_episodes > 0) {

@@ -85,51 +85,42 @@ class SimklApi(private val client: OkHttpClient, interceptor: SimklInterceptor) 
         }
     }
 
-    private suspend fun updateProgress(track: Track) {
-        // first remove
-        authClient.newCall(
-            POST("$API_URL/sync/history/remove", body = buildProgressObject(track, false)),
-        ).awaitSuccess()
-        // then add again
-        authClient.newCall(
-            POST("$API_URL/sync/history", body = buildProgressObject(track, true)),
-        ).awaitSuccess()
-    }
-
-    private fun buildProgressObject(track: Track, add: Boolean = true) = buildJsonObject {
-        putJsonArray("shows") {
-            addJsonObject {
-                putJsonObject("ids") {
-                    put("simkl", track.remote_id)
-                }
-                putJsonArray("seasons") {
-                    addJsonObject {
-                        put("number", 1)
-                        if (add) {
-                            putJsonArray("episodes") {
-                                for (epNum in 1..track.last_episode_seen.toInt()) {
-                                    addJsonObject {
-                                        put("number", epNum)
-                                    }
-                                }
-                            }
+    private suspend fun addEpisodeToHistory(track: Track, watchedAt: String) {
+        val payload = buildJsonObject {
+            putJsonArray("shows") {
+                addJsonObject {
+                    putJsonObject("ids") {
+                        put("simkl", track.remote_id)
+                    }
+                    putJsonArray("episodes") {
+                        addJsonObject {
+                            put("number", track.last_episode_seen.toInt())
+                            put("watched_at", watchedAt)
                         }
                     }
                 }
             }
-        }
-    }.toString().toRequestBody(jsonMime)
+        }.toString().toRequestBody(jsonMime)
+        authClient.newCall(
+            POST("$API_URL/sync/history", body = payload),
+        ).awaitSuccess()
+    }
 
-    suspend fun updateLibAnime(track: Track): Track {
+    suspend fun updateLibAnime(track: Track, watchedAt: Long = 0): Track {
         return withIOContext {
             // determine media type
             val type = track.tracking_url
                 .substringAfter("/")
                 .substringBefore("/")
             val mediaType = if (type == "movies") "movies" else "shows"
-            // update progress only for shows
-            if (type != "movies") {
-                updateProgress(track)
+            // update progress only for shows when a new episode was watched
+            if (type != "movies" && watchedAt > 0) {
+                val watchedAtIso = java.text.SimpleDateFormat(
+                    "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                    java.util.Locale.US,
+                ).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+                    .format(java.util.Date(watchedAt))
+                addEpisodeToHistory(track, watchedAtIso)
             }
             // add to correct list
             addToList(track, mediaType)

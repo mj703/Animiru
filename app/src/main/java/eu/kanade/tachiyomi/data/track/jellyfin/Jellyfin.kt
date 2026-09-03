@@ -54,7 +54,7 @@ class Jellyfin(id: Long) : BaseTracker(id, "Jellyfin"), EnhancedTracker {
 
     override fun displayScore(track: DomainTrack): String = ""
 
-    override suspend fun update(track: Track, didWatchEpisode: Boolean): Track {
+    override suspend fun update(track: Track, didWatchEpisode: Boolean, watchedAt: Long): Track {
         return api.updateProgress(track)
     }
 

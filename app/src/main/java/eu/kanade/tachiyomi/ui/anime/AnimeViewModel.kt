@@ -1124,7 +1124,7 @@ class AnimeViewModel(
 
             if (!shouldPromptTrackingUpdate) return@launchIO
             if (autoTrackState == AutoTrackState.ALWAYS) {
-                trackEpisode.await(context, animeId, maxEpisodeNumber)
+                trackEpisode.await(context, animeId, maxEpisodeNumber, watchedAt = System.currentTimeMillis())
                 withUIContext {
                     context.toast(
                         context.stringResource(AYMR.strings.trackers_updated_summary_anime, maxEpisodeNumber.toInt()),
@@ -1141,7 +1141,7 @@ class AnimeViewModel(
             )
 
             if (result == SnackbarResult.ActionPerformed) {
-                trackEpisode.await(context, animeId, maxEpisodeNumber)
+                trackEpisode.await(context, animeId, maxEpisodeNumber, watchedAt = System.currentTimeMillis())
             }
         }
     }

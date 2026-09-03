@@ -21,7 +21,13 @@ class TrackEpisode(
     private val delayedTrackingStore: DelayedTrackingStore,
 ) {
 
-    suspend fun await(context: Context, animeId: Long, episodeNumber: Double, setupJobOnFailure: Boolean = true) {
+    suspend fun await(
+        context: Context,
+        animeId: Long,
+        episodeNumber: Double,
+        setupJobOnFailure: Boolean = true,
+        watchedAt: Long = 0,
+    ) {
         withNonCancellableContext {
             val tracks = getTracks.await(animeId)
             if (tracks.isEmpty()) return@withNonCancellableContext
@@ -38,11 +44,11 @@ class TrackEpisode(
                             val updatedTrack = service.refresh(track.toDbTrack())
                                 .toDomainTrack(idRequired = true)!!
                                 .copy(lastEpisodeSeen = episodeNumber)
-                            service.update(updatedTrack.toDbTrack(), true)
+                            service.update(updatedTrack.toDbTrack(), true, watchedAt)
                             insertTrack.await(updatedTrack)
                             delayedTrackingStore.remove(track.id)
                         } catch (e: Exception) {
-                            delayedTrackingStore.add(track.id, episodeNumber)
+                            delayedTrackingStore.add(track.id, episodeNumber, watchedAt)
                             if (setupJobOnFailure) {
                                 DelayedTrackingUpdateJob.setupTask(context)
                             }

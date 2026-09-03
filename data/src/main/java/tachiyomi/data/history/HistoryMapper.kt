@@ -10,10 +10,12 @@ object HistoryMapper {
         id: Long,
         episodeId: Long,
         seenAt: Date?,
+        firstSeen: Date? = null,
     ): History = History(
         id = id,
         episodeId = episodeId,
         seenAt = seenAt,
+        firstSeen = firstSeen,
     )
 
     fun mapHistoryWithRelations(

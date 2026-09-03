@@ -46,6 +46,7 @@ import tachiyomi.domain.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.episode.interactor.UpdateEpisode
 import tachiyomi.domain.episode.model.Episode
 import tachiyomi.domain.episode.model.EpisodeUpdate
+import tachiyomi.domain.history.interactor.GetHistory
 import tachiyomi.domain.history.interactor.UpsertHistory
 import tachiyomi.domain.history.model.HistoryUpdate
 import tachiyomi.domain.source.service.SourceManager
@@ -452,6 +453,7 @@ class ExternalIntents {
 
     // List of all the required Injectable classes
     private val upsertHistory: UpsertHistory = Injekt.get()
+    private val getHistory: GetHistory = Injekt.get()
     private val updateEpisode: UpdateEpisode = Injekt.get()
     private val getAnime: GetAnime = Injekt.get()
     private val sourceManager: SourceManager = Injekt.get()
@@ -511,7 +513,7 @@ class ExternalIntents {
                 ),
             )
             if (trackPreferences.autoUpdateTrack.get() && currEp.seen) {
-                updateTrackEpisodeSeen(currEp.episodeNumber, anime)
+                updateTrackEpisodeSeen(currEp.id, currEp.episodeNumber, anime)
             }
             if (seen) {
                 deleteEpisodeIfNeeded(currentEpisode, anime)
@@ -555,11 +557,19 @@ class ExternalIntents {
      * @param episodeNumber the episode number to be updated.
      * @param anime the anime of the episode.
      */
-    private suspend fun updateTrackEpisodeSeen(episodeNumber: Double, anime: Anime) {
+    private suspend fun updateTrackEpisodeSeen(episodeId: Long, episodeNumber: Double, anime: Anime) {
         if (!trackPreferences.autoUpdateTrack.get()) return
 
         val trackerManager = Injekt.get<TrackerManager>()
         val context = Injekt.get<Application>()
+
+        // Prefer the preserved first-watch date so a re-watch after an accidental
+        // unmark keeps the original date on the tracker.
+        val watchedAt = try {
+            getHistory.awaitFirstSeen(episodeId)?.time ?: System.currentTimeMillis()
+        } catch (_: Exception) {
+            System.currentTimeMillis()
+        }
 
         withIOContext {
             getTracks.await(anime.id)
@@ -576,10 +586,10 @@ class ExternalIntents {
                         async {
                             runCatching {
                                 if (context.isOnline()) {
-                                    tracker.update(updatedTrack.toDbTrack(), true)
+                                    tracker.update(updatedTrack.toDbTrack(), true, watchedAt)
                                     insertTrack.await(updatedTrack)
                                 } else {
-                                    delayedTrackingStore.add(track.animeId, lastEpisodeSeen = episodeNumber)
+                                    delayedTrackingStore.add(track.id, lastEpisodeSeen = episodeNumber, watchedAt = watchedAt)
                                     DelayedTrackingUpdateJob.setupTask(context)
                                 }
                             }

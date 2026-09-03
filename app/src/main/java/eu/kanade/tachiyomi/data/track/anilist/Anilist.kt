@@ -142,7 +142,7 @@ class Anilist(id: Long) : BaseTracker(id, "AniList"), DeletableTracker {
         return api.addLibAnime(track)
     }
 
-    override suspend fun update(track: Track, didWatchEpisode: Boolean): Track {
+    override suspend fun update(track: Track, didWatchEpisode: Boolean, watchedAt: Long): Track {
         // If user was using API v1 fetch library_id
         if (track.library_id == null || track.library_id!! == 0L) {
             val libAnime = api.findLibAnime(track, getUsername().toInt())

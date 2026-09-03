@@ -92,6 +92,7 @@ class AppModule(val app: Application) : InjektModule {
                 driver = get(),
                 historyAdapter = History.Adapter(
                     last_seenAdapter = DateColumnAdapter,
+                    first_seenAdapter = DateColumnAdapter,
                 ),
                 animesAdapter = Animes.Adapter(
                     genreAdapter = StringListColumnAdapter,

@@ -11,6 +11,7 @@ import tachiyomi.domain.history.model.History
 import tachiyomi.domain.history.model.HistoryUpdate
 import tachiyomi.domain.history.model.HistoryWithRelations
 import tachiyomi.domain.history.repository.HistoryRepository
+import java.util.Date
 
 class HistoryRepositoryImpl(
     private val database: Database,
@@ -27,6 +28,16 @@ class HistoryRepositoryImpl(
 
     override suspend fun getHistoryByAnimeId(animeId: Long): List<History> {
         return database.historyQueries.getHistoryByAnimeId(animeId, HistoryMapper::mapHistory).awaitAsList()
+    }
+
+    override suspend fun getFirstSeenByEpisodeId(episodeId: Long): Date? {
+        return try {
+            database.historyQueries.getFirstSeenByEpisodeId(episodeId)
+                .awaitAsOneOrNull()
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, throwable = e)
+            null
+        }
     }
 
     override suspend fun resetHistory(historyId: Long) {

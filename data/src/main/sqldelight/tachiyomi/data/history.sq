@@ -4,6 +4,7 @@ CREATE TABLE history(
     _id INTEGER NOT NULL PRIMARY KEY,
     episode_id INTEGER NOT NULL UNIQUE,
     last_seen INTEGER AS Date,
+    first_seen INTEGER AS Date,
     FOREIGN KEY(episode_id) REFERENCES episodes (_id)
     ON DELETE CASCADE
 );
@@ -15,7 +16,8 @@ getHistoryByAnimeId:
 SELECT
 H._id,
 H.episode_id,
-H.last_seen
+H.last_seen,
+H.first_seen
 FROM history H
 JOIN episodes EP
 ON H.episode_id = EP._id
@@ -25,7 +27,8 @@ getHistoryByEpisodeUrlAndAnimeId:
 SELECT
 H._id,
 H.episode_id,
-H.last_seen
+H.last_seen,
+H.first_seen
 FROM history H
 JOIN episodes EP
 ON H.episode_id = EP._id
@@ -58,10 +61,16 @@ DELETE FROM history
 WHERE last_seen = 0;
 
 upsert:
-INSERT INTO history(episode_id, last_seen)
-VALUES (:episodeId, :seenAt)
+INSERT INTO history(episode_id, last_seen, first_seen)
+VALUES (:episodeId, :seenAt, :seenAt)
 ON CONFLICT(episode_id)
 DO UPDATE
 SET
     last_seen = :seenAt
 WHERE episode_id = :episodeId;
+
+getFirstSeenByEpisodeId:
+SELECT first_seen
+FROM history
+WHERE episode_id = :episodeId
+LIMIT 1;

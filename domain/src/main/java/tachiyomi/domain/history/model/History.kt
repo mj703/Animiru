@@ -6,6 +6,7 @@ data class History(
     val id: Long,
     val episodeId: Long,
     val seenAt: Date?,
+    val firstSeen: Date? = null,
 ) {
     companion object {
         fun create() = History(

@@ -34,18 +34,24 @@ class DelayedTrackingUpdateJob(private val context: Context, workerParams: Worke
 
         withIOContext {
             delayedTrackingStore.getItems()
-                .mapNotNull {
-                    val track = getTracks.awaitOne(it.trackId)
+                .mapNotNull { item ->
+                    val track = getTracks.awaitOne(item.trackId)
                     if (track == null) {
-                        delayedTrackingStore.remove(it.trackId)
+                        delayedTrackingStore.remove(item.trackId)
                     }
-                    track?.copy(lastEpisodeSeen = it.lastEpisodeSeen.toDouble())
+                    track?.let { it.copy(lastEpisodeSeen = item.lastEpisodeSeen.toDouble()) to item.watchedAt }
                 }
-                .forEach { track ->
+                .forEach { (track, watchedAt) ->
                     logcat(LogPriority.DEBUG) {
                         "Updating delayed track item: ${track.animeId}, last episode seen: ${track.lastEpisodeSeen}"
                     }
-                    trackEpisode.await(context, track.animeId, track.lastEpisodeSeen, setupJobOnFailure = false)
+                    trackEpisode.await(
+                        context,
+                        track.animeId,
+                        track.lastEpisodeSeen,
+                        setupJobOnFailure = false,
+                        watchedAt = watchedAt,
+                    )
                 }
         }
 

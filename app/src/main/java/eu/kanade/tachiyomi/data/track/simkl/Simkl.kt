@@ -43,7 +43,7 @@ class Simkl(id: Long) : BaseTracker(id, "Simkl"), Tracker {
         return api.addLibAnime(track)
     }
 
-    override suspend fun update(track: Track, didWatchEpisode: Boolean): Track {
+    override suspend fun update(track: Track, didWatchEpisode: Boolean, watchedAt: Long): Track {
         if (track.status != COMPLETED) {
             if (didWatchEpisode) {
                 if (track.last_episode_seen.toLong() == track.total_episodes && track.total_episodes > 0) {
@@ -54,7 +54,7 @@ class Simkl(id: Long) : BaseTracker(id, "Simkl"), Tracker {
             }
         }
 
-        return api.updateLibAnime(track)
+        return api.updateLibAnime(track, watchedAt)
     }
 
     override suspend fun bind(track: Track, hasSeenEpisodes: Boolean): Track {

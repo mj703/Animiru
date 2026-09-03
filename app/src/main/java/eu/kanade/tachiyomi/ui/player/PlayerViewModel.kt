@@ -142,6 +142,7 @@ import tachiyomi.domain.episode.interactor.GetEpisodesByAnimeId
 import tachiyomi.domain.episode.interactor.UpdateEpisode
 import tachiyomi.domain.episode.model.EpisodeUpdate
 import tachiyomi.domain.episode.service.getEpisodeSort
+import tachiyomi.domain.history.interactor.GetHistory
 import tachiyomi.domain.history.interactor.GetNextEpisodes
 import tachiyomi.domain.history.interactor.UpsertHistory
 import tachiyomi.domain.history.model.HistoryUpdate
@@ -176,6 +177,7 @@ class PlayerViewModel @JvmOverloads constructor(
     private val getIncognitoState: GetIncognitoState = Injekt.get(),
 
     private val upsertHistory: UpsertHistory = Injekt.get(),
+    private val getHistory: GetHistory = Injekt.get(),
     private val updateEpisode: UpdateEpisode = Injekt.get(),
     private val trackEpisode: TrackEpisode = Injekt.get(),
     private val setAnimeViewerFlags: SetAnimeViewerFlags = Injekt.get(),
@@ -3098,9 +3100,18 @@ class PlayerViewModel @JvmOverloads constructor(
         if (!trackPreferences.autoUpdateTrack.get()) return
 
         val anime = stateData.value.currentAnime ?: return
+        val episodeId = episode.id ?: return
 
         viewModelScope.launchNonCancellable {
-            trackEpisode.await(context, anime.id, episode.episode_number.toDouble())
+            // Prefer the preserved first-watch date so that a re-watch after an
+            // accidental unmark keeps the original date on the tracker instead
+            // of stamping every episode with the latest watch date.
+            val watchedAt = try {
+                getHistory.awaitFirstSeen(episodeId)?.time ?: System.currentTimeMillis()
+            } catch (_: Exception) {
+                System.currentTimeMillis()
+            }
+            trackEpisode.await(context, anime.id, episode.episode_number.toDouble(), watchedAt = watchedAt)
         }
     }
 

@@ -45,7 +45,7 @@ interface Tracker {
 
     fun displayScore(track: DomainTrack): String
 
-    suspend fun update(track: Track, didWatchEpisode: Boolean = false): Track
+    suspend fun update(track: Track, didWatchEpisode: Boolean = false, watchedAt: Long = 0): Track
 
     suspend fun bind(track: Track, hasSeenEpisodes: Boolean = false): Track
 

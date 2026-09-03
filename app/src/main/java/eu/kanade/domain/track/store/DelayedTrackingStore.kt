@@ -12,12 +12,15 @@ class DelayedTrackingStore(context: Context) {
      */
     private val preferences = context.getSharedPreferences("tracking_queue", Context.MODE_PRIVATE)
 
-    fun add(trackId: Long, lastEpisodeSeen: Double) {
+    fun add(trackId: Long, lastEpisodeSeen: Double, watchedAt: Long = 0) {
         val previousLastEpisodeSeen = preferences.getFloat(trackId.toString(), 0f)
         if (lastEpisodeSeen > previousLastEpisodeSeen) {
             logcat(LogPriority.DEBUG) { "Queuing track item: $trackId, last episode seen: $lastEpisodeSeen" }
             preferences.edit {
                 putFloat(trackId.toString(), lastEpisodeSeen.toFloat())
+                if (watchedAt > 0) {
+                    putLong(trackId.watchedAtKey(), watchedAt)
+                }
             }
         }
     }
@@ -25,14 +28,18 @@ class DelayedTrackingStore(context: Context) {
     fun remove(trackId: Long) {
         preferences.edit {
             remove(trackId.toString())
+            remove(trackId.watchedAtKey())
         }
     }
 
     fun getItems(): List<DelayedTrackingItem> {
-        return preferences.all.mapNotNull {
+        return preferences.all.mapNotNull { (key, value) ->
+            if (key.endsWith(WATCHED_AT_SUFFIX)) return@mapNotNull null
+            val trackId = key.toLongOrNull() ?: return@mapNotNull null
             DelayedTrackingItem(
-                trackId = it.key.toLong(),
-                lastEpisodeSeen = it.value.toString().toFloat(),
+                trackId = trackId,
+                lastEpisodeSeen = value.toString().toFloatOrNull() ?: 0f,
+                watchedAt = preferences.getLong(trackId.watchedAtKey(), 0L),
             )
         }
     }
@@ -40,5 +47,12 @@ class DelayedTrackingStore(context: Context) {
     data class DelayedTrackingItem(
         val trackId: Long,
         val lastEpisodeSeen: Float,
+        val watchedAt: Long = 0L,
     )
+
+    companion object {
+        private const val WATCHED_AT_SUFFIX = ":watched_at"
+
+        private fun Long.watchedAtKey(): String = "$this$WATCHED_AT_SUFFIX"
+    }
 }

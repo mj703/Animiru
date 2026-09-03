@@ -123,9 +123,16 @@ android {
     splits {
         abi {
             isEnable = true
-            isUniversalApk = true
+            // When -PabiFilter is passed (e.g. by CI), build only those ABIs
+            // and skip the universal APK. Defaults to all ABIs.
+            val abiFilter = project.findProperty("abiFilter")?.toString()
+                ?.split(",")
+                ?.map { it.trim() }
+                ?.filter { it.isNotEmpty() }
+                ?: listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = project.findProperty("abiFilter") == null
             reset()
-            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            include(*abiFilter.toTypedArray())
         }
     }
 

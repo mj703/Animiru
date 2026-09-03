@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import tachiyomi.domain.history.model.History
 import tachiyomi.domain.history.model.HistoryUpdate
 import tachiyomi.domain.history.model.HistoryWithRelations
+import java.util.Date
 
 interface HistoryRepository {
 
@@ -12,6 +13,8 @@ interface HistoryRepository {
     suspend fun getLastHistory(): HistoryWithRelations?
 
     suspend fun getHistoryByAnimeId(animeId: Long): List<History>
+
+    suspend fun getFirstSeenByEpisodeId(episodeId: Long): Date?
 
     suspend fun resetHistory(historyId: Long)
 

@@ -1,0 +1,2 @@
+ALTER TABLE history ADD COLUMN first_seen INTEGER;
+UPDATE history SET first_seen = last_seen WHERE first_seen IS NULL;
