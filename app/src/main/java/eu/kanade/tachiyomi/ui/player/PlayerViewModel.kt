@@ -64,6 +64,7 @@ import eu.kanade.tachiyomi.data.torrent.service.TorrentServerService
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.track.anilist.Anilist
 import eu.kanade.tachiyomi.data.track.myanimelist.MyAnimeList
+import eu.kanade.tachiyomi.data.track.simkl.Simkl
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.player.cast.CastDialog
 import eu.kanade.tachiyomi.ui.player.cast.CastSheet
@@ -3538,6 +3539,7 @@ class PlayerViewModel @JvmOverloads constructor(
             malId = when (tracker) {
                 is MyAnimeList -> track.remoteId
                 is Anilist -> AniSkipApi().getMalIdFromAL(track.remoteId)
+                is Simkl -> AniSkipApi().getMalIdFromSimkl(track.remoteId).takeIf { it > 0 }
                 else -> null
             }
             val duration = playerDuration ?: return null

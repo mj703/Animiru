@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.player.utils
 
 import eu.kanade.tachiyomi.animesource.model.ChapterType
 import eu.kanade.tachiyomi.animesource.model.TimeStamp
+import eu.kanade.tachiyomi.data.track.simkl.SimklApi
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.jsonMime
@@ -63,7 +64,28 @@ class AniSkipApi {
         return response.body.string().substringAfter("idMal\":").substringBefore("}")
             .toLongOrNull() ?: 0
     }
+
+    fun getMalIdFromSimkl(simklId: Long): Long {
+        val url = "https://api.simkl.com/search/id?simkl=$simklId&client_id=${SimklApi.CLIENT_ID}"
+        return try {
+            val body = client.newCall(GET(url)).execute().body.string()
+            json.decodeFromString<List<SimklIdLookupResult>>(body)
+                .firstOrNull()?.mal?.id ?: 0
+        } catch (_: Exception) {
+            0
+        }
+    }
 }
+
+@Serializable
+data class SimklIdLookupResult(
+    val mal: SimklMalRef? = null,
+)
+
+@Serializable
+data class SimklMalRef(
+    val id: Long = 0,
+)
 
 @Serializable
 data class AniSkipResponse(
