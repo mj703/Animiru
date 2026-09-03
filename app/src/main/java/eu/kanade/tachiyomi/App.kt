@@ -26,6 +26,7 @@ import dev.mihon.injekt.patchInjekt
 import eu.kanade.domain.DomainModule
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.connection.SyncPreferences
+import eu.kanade.domain.track.service.DelayedTrackingUpdateJob
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.ui.model.setAppCompatDelegateThemeMode
 import eu.kanade.tachiyomi.crash.CrashActivity
@@ -224,6 +225,9 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         // AM (SYNC) -->
         startSyncJob(syncPreferences.getSyncTriggerOptions().syncOnAppResume)
         // <-- AM (SYNC)
+        // Push locally seen episodes the trackers missed (e.g. watched
+        // offline) as soon as the app is opened with connectivity.
+        syncPendingTracks()
     }
 
     override fun onStop(owner: LifecycleOwner) {
@@ -294,6 +298,14 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         }
     }
     // <-- AM (SYNC)
+
+    private fun syncPendingTracks() {
+        try {
+            DelayedTrackingUpdateJob.setupTask(this@App)
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "Failed to schedule pending tracking sync" }
+        }
+    }
 }
 
 private const val ACTION_DISABLE_INCOGNITO_MODE = "tachi.action.DISABLE_INCOGNITO_MODE"

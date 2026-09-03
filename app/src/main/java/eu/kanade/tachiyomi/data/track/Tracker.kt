@@ -47,6 +47,15 @@ interface Tracker {
 
     suspend fun update(track: Track, didWatchEpisode: Boolean = false, watchedAt: Long = 0): Track
 
+    /**
+     * Whether this tracker records individual watch events per episode
+     * (with their own watch dates), as opposed to a single episode counter.
+     * Only trackers with this set receive one update call per missing episode
+     * during backfill; the rest get a single jump to the latest episode.
+     */
+    val supportsPerEpisodeTracking: Boolean
+        get() = false
+
     suspend fun bind(track: Track, hasSeenEpisodes: Boolean = false): Track
 
     suspend fun search(query: String): List<TrackSearch>

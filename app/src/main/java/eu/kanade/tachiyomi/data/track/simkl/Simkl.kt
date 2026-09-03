@@ -33,6 +33,8 @@ class Simkl(id: Long) : BaseTracker(id, "Simkl"), Tracker {
 
     private val api by lazy { SimklApi(client, interceptor) }
 
+    override val supportsPerEpisodeTracking: Boolean = true
+
     override fun getScoreList(): List<String> = SCORE_LIST
 
     override fun displayScore(track: DomainTrack): String {

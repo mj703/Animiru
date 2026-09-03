@@ -8,6 +8,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkerParameters
+import eu.kanade.domain.track.interactor.SyncPendingTracks
 import eu.kanade.domain.track.interactor.TrackEpisode
 import eu.kanade.domain.track.store.DelayedTrackingStore
 import eu.kanade.tachiyomi.util.system.workManager
@@ -29,10 +30,15 @@ class DelayedTrackingUpdateJob(private val context: Context, workerParams: Worke
 
         val getTracks = Injekt.get<GetTracks>()
         val trackEpisode = Injekt.get<TrackEpisode>()
+        val syncPendingTracks = Injekt.get<SyncPendingTracks>()
 
         val delayedTrackingStore = Injekt.get<DelayedTrackingStore>()
 
         withIOContext {
+            // Reconcile every locally seen episode the trackers missed
+            // (e.g. watched offline), each with its own watch date.
+            syncPendingTracks.await(context)
+
             delayedTrackingStore.getItems()
                 .mapNotNull { item ->
                     val track = getTracks.awaitOne(item.trackId)

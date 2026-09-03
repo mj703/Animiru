@@ -31,6 +31,7 @@ import eu.kanade.domain.source.interactor.ToggleSourcePin
 import eu.kanade.domain.track.interactor.AddTracks
 import eu.kanade.domain.track.interactor.RefreshTracks
 import eu.kanade.domain.track.interactor.SyncEpisodeProgressWithTrack
+import eu.kanade.domain.track.interactor.SyncPendingTracks
 import eu.kanade.domain.track.interactor.TrackEpisode
 import mihon.data.extension.repository.ExtensionStoreRepositoryImpl
 import mihon.data.extension.service.ExtensionStoreService
@@ -183,7 +184,8 @@ class DomainModule : InjektModule {
         addFactory { GetApplicationRelease(get()) }
 
         addSingletonFactory<TrackRepository> { TrackRepositoryImpl(get()) }
-        addFactory { TrackEpisode(get(), get(), get(), get()) }
+        addFactory { TrackEpisode(get(), get(), get(), get(), get(), get()) }
+        addFactory { SyncPendingTracks(get(), get(), get(), get()) }
         addFactory { AddTracks(get(), get(), get(), get(), get(), get()) }
         addFactory { RefreshTracks(get(), get(), get(), get()) }
         addFactory { DeleteTrack(get()) }
