@@ -32,7 +32,7 @@ class HistoryRepositoryImpl(
 
     override suspend fun getFirstSeenByEpisodeId(episodeId: Long): Date? {
         return try {
-            database.historyQueries.getFirstSeenByEpisodeId(episodeId)
+            database.historyQueries.getFirstSeenByEpisodeId(episodeId) { firstSeen -> firstSeen }
                 .awaitAsOneOrNull()
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, throwable = e)
