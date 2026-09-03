@@ -64,6 +64,7 @@ data class DummyTracker(
     override suspend fun update(
         track: eu.kanade.tachiyomi.data.database.models.Track,
         didWatchEpisode: Boolean,
+        watchedAt: Long,
     ): eu.kanade.tachiyomi.data.database.models.Track = track
 
     override suspend fun bind(
