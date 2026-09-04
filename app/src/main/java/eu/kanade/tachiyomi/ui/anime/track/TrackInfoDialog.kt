@@ -56,6 +56,7 @@ import eu.kanade.tachiyomi.data.track.DeletableTracker
 import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.Tracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.data.track.local.LocalTrackMetadataGenerator
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import eu.kanade.tachiyomi.util.lang.convertEpochMillisZone
 import eu.kanade.tachiyomi.util.lang.toLocalDate
@@ -78,6 +79,7 @@ import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.anime.interactor.GetAnime
+import tachiyomi.domain.anime.model.Anime
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.track.interactor.DeleteTrack
 import tachiyomi.domain.track.interactor.GetTracks
@@ -87,6 +89,7 @@ import tachiyomi.presentation.core.components.LabeledCheckbox
 import tachiyomi.presentation.core.components.material.AlertDialogContent
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.source.local.isLocal
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import kotlin.time.Clock
@@ -878,8 +881,39 @@ data class TrackerSearchScreen(
                 val anime = Injekt.get<GetAnime>().await(animeId) ?: return@launchNonCancellable
                 // <-- AM
                 tracker.register(item, anime)
+                // AY -->
+                fillLocalMetadata(anime, item)
+                // <-- AY
             }
         }
+
+        // AY -->
+
+        /**
+         * For locally stored anime, automatically fetch the metadata behind the
+         * selected tracking entry and write it as `details.json` (+ cover) into
+         * the local anime directory, so no manual Aniyomi JSON is needed.
+         */
+        private suspend fun fillLocalMetadata(anime: Anime, item: TrackSearch) {
+            if (!anime.isLocal()) return
+            val result = try {
+                Injekt.get<LocalTrackMetadataGenerator>().fillFromTrack(anime.url, tracker.id, item)
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Failed to auto-fill local metadata" }
+                return
+            }
+            withUIContext {
+                val context = Injekt.get<Application>()
+                when (result) {
+                    LocalTrackMetadataGenerator.FillResult.Success ->
+                        context.toast(MR.strings.local_metadata_saved)
+                    LocalTrackMetadataGenerator.FillResult.MalIdUnavailable ->
+                        context.toast(MR.strings.mal_id_not_available_simkl)
+                    else -> Unit
+                }
+            }
+        }
+        // <-- AY
 
         fun updateSelection(selected: TrackSearch) {
             mutableState.update { it.copy(selected = selected) }
