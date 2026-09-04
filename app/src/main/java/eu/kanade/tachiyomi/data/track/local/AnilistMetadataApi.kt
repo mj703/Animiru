@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.jsonMime
 import eu.kanade.tachiyomi.network.parseAs
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -73,7 +74,8 @@ data class AnilistMediaResponse(
 
 @Serializable
 data class AnilistMediaData(
-    val Media: AnilistMedia? = null,
+    @SerialName("Media")
+    val media: AnilistMedia? = null,
 )
 
 @Serializable

@@ -11,6 +11,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToStream
 import logcat.LogPriority
 import okhttp3.OkHttpClient
+import tachiyomi.core.common.storage.extension
+import tachiyomi.core.common.storage.nameWithoutExtension
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.core.metadata.tachiyomi.AnimeDetails
@@ -95,7 +97,7 @@ class LocalTrackMetadataGenerator(
         return jikanApi.getAnime(malId).toResolvedMetadata()
     }
 
-    private fun writeDetailsJson(animeUrl: String, details: AnimeDetails) {
+    private suspend fun writeDetailsJson(animeUrl: String, details: AnimeDetails) {
         val directory = fileSystem.getAnimeDirectory(animeUrl)
             ?: throw IllegalStateException("Local anime directory not found")
         val existing = directory.listFiles()
@@ -106,7 +108,7 @@ class LocalTrackMetadataGenerator(
             ?: throw IllegalStateException("Could not write $DETAILS_FILE")
     }
 
-    private fun writeCoverIfMissing(animeUrl: String, coverUrl: String?) {
+    private suspend fun writeCoverIfMissing(animeUrl: String, coverUrl: String?) {
         if (coverUrl.isNullOrBlank()) return
         val directory = fileSystem.getAnimeDirectory(animeUrl) ?: return
         val hasCover = directory.listFiles()
