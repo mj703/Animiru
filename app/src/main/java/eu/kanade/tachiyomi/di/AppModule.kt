@@ -22,6 +22,7 @@ import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.download.DownloadProvider
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.data.track.local.LocalTrackMetadataGenerator
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.network.JavaScriptEngine
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -146,6 +147,9 @@ class AppModule(val app: Application) : InjektModule {
 
         addSingletonFactory { TrackerManager() }
         addSingletonFactory { DelayedTrackingStore(app) }
+        // AY -->
+        addSingletonFactory { LocalTrackMetadataGenerator(fileSystem = get()) }
+        // <-- AY
 
         // AM (CONNECTION) -->
         addSingletonFactory { ConnectionManager() }

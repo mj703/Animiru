@@ -53,10 +53,6 @@ concurrency:
 permissions:
   contents: write
 
-env:
-  IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
-  DO_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.release == true }}
-
 jobs:
   test:
     name: Test & Lint
@@ -68,6 +64,8 @@ jobs:
 
       - name: Dependency Review
         if: github.event_name == 'pull_request'
+        # Forks may not have the dependency graph enabled; keep this advisory.
+        continue-on-error: true
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
 
       - name: Set up JDK
@@ -196,17 +194,53 @@ jobs:
           name: mapping-${{ steps.resolve-arch.outputs.arch }}
           path: app/build/outputs/mapping/release
 
+      # Always visible record of whether the release job will run and why,
+      # so a skipped release is never mistaken for a stuck one.
+      - name: Summarize release gate
+        if: always()
+        run: |
+          EVENT="${{ github.event_name }}"
+          REF="${{ github.ref }}"
+          WANT_RELEASE="${{ inputs.release }}"
+          ARCH="${{ steps.resolve-arch.outputs.arch }}"
+          TAG="${{ steps.resolve-tag.outputs.tag }}"
+          {
+            echo "### Release gate"
+            echo "- Event: \`$EVENT\` | Ref: \`$REF\`"
+            echo "- Architecture: \`$ARCH\` | Tag: \`$TAG\`"
+            if [[ "$REF" == refs/tags/v* ]]; then
+              echo "- Release job: WILL RUN (tag push)"
+            elif [[ "$EVENT" == "workflow_dispatch" && "$WANT_RELEASE" == "true" ]]; then
+              echo "- Release job: WILL RUN (manual dispatch with release=true)"
+            else
+              echo "- Release job: SKIPPED (needs a \`v*\` tag push or a manual dispatch with release=true)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   release:
     name: Publish GitHub Release
     needs: build
     runs-on: ubuntu-24.04
-    if: env.DO_RELEASE == 'true' || env.IS_TAG == 'true'
+    # NOTE: the `env` context is not available in job `if` conditions,
+    # so the tag/manual-release gate is inlined here.
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release == true)
 
     steps:
       - name: Download APK
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: Animiru-${{ needs.build.outputs.arch }}
+
+      # Fail loudly instead of publishing an empty/broken release.
+      - name: Verify APK present
+        run: |
+          APK="${{ needs.build.outputs.apk_name }}"
+          if [[ -z "$APK" || ! -f "$APK" ]]; then
+            echo "::error::Expected APK '$APK' not found after artifact download"
+            ls -la
+            exit 1
+          fi
+          echo "APK ready: $APK ($(du -h "$APK" | cut -f1))"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2

@@ -806,6 +806,8 @@
     <string name="myanimelist_relogin">Please login to MAL again</string>
     <string name="source_unsupported">Source is not supported</string>
     <string name="error_no_match">No match found</string>
+    <string name="mal_id_not_available_simkl">MAL ID not available for this Simkl entry</string>
+    <string name="local_metadata_saved">Local metadata saved</string>
     <string name="track_error">%1$s error: %2$s</string>
     <string name="track_remove_date_conf_title">Remove date?</string>
     <string name="track_remove_start_date_conf_text">This will remove your previously selected start date from %s</string>
