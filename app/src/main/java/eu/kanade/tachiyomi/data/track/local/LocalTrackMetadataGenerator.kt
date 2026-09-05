@@ -91,7 +91,7 @@ class LocalTrackMetadataGenerator(
     }
 
     private suspend fun metadataFromSimkl(track: TrackSearch): ResolvedMetadata? {
-        val malId = simklResolver.resolveMalId(track.remote_id, track.title)
+        val malId = simklResolver.resolveMalId(track.remote_id, track.title, track.tracking_url)
         if (malId <= 0) throw MalIdUnavailableException()
         delay(SimklIdResolver.JIKAN_DELAY_MS)
         return jikanApi.getAnime(malId).toResolvedMetadata()

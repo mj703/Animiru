@@ -5,11 +5,14 @@ import androidx.core.net.toUri
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.parseAs
+import kotlinx.coroutines.delay
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import logcat.LogPriority
 import okhttp3.OkHttpClient
 import tachiyomi.core.common.util.lang.withIOContext
+import tachiyomi.core.common.util.system.logcat
 import uy.kohesive.injekt.injectLazy
 
 /**
@@ -24,7 +27,7 @@ class JikanApi(private val client: OkHttpClient) {
     private val json: Json by injectLazy()
 
     suspend fun searchAnime(query: String, limit: Int = 5): List<JikanAnime> {
-        return withIOContext {
+        return withRetry {
             val url = "$BASE_URL/anime".toUri().buildUpon()
                 .appendQueryParameter("q", query.take(64))
                 .appendQueryParameter("limit", limit.coerceIn(1, 25).toString())
@@ -41,7 +44,7 @@ class JikanApi(private val client: OkHttpClient) {
     }
 
     suspend fun getAnime(malId: Long): JikanAnime {
-        return withIOContext {
+        return withRetry {
             with(json) {
                 client.newCall(GET("$BASE_URL/anime/$malId"))
                     .awaitSuccess()
@@ -51,8 +54,28 @@ class JikanApi(private val client: OkHttpClient) {
         }
     }
 
+    /**
+     * Jikan rate-limits (429) and occasionally 5xxs when its upstream MAL
+     * scrape fails. Retry transient failures instead of surfacing them.
+     */
+    private suspend fun <T> withRetry(attempts: Int = MAX_ATTEMPTS, block: suspend () -> T): T {
+        var lastError: Exception? = null
+        repeat(attempts) { attempt ->
+            try {
+                return withIOContext { block() }
+            } catch (e: Exception) {
+                lastError = e
+                logcat(LogPriority.WARN, e) { "JikanApi: attempt ${attempt + 1}/$attempts failed" }
+                delay(RETRY_DELAY_MS * (attempt + 1))
+            }
+        }
+        throw lastError ?: IllegalStateException("Jikan request failed")
+    }
+
     companion object {
         const val BASE_URL = "https://api.jikan.moe/v4"
+        private const val MAX_ATTEMPTS = 3
+        private const val RETRY_DELAY_MS = 1000L
     }
 }
 

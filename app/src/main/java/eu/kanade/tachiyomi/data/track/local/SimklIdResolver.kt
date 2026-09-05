@@ -20,10 +20,13 @@ import uy.kohesive.injekt.injectLazy
 /**
  * Resolves the MyAnimeList ID for a Simkl entry.
  *
- * Simkl maintains MAL IDs for a part of its catalogue and exposes them through
- * `GET /search/id?simkl=<id>`. Anime entries frequently have no cross IDs at
- * all, so when the direct lookup yields nothing we fall back to a Jikan title
- * search (results ordered by member count, first hit wins).
+ * The id-lookup endpoint (`GET /search/id?simkl=<id>`) only returns cross IDs
+ * for part of the catalogue — anime entries typically carry just the Simkl id.
+ * The full detail endpoint (`GET /anime|shows|movies/<id>?extended=full`),
+ * the same source the Simkl website itself uses, exposes the complete cross-ID
+ * block including `mal`/`anilist`. Only when that yields nothing do we fall
+ * back to a Jikan title search (results ordered by member count, first hit
+ * wins).
  *
  * @return the MAL id, or 0 when no MAL id could be resolved.
  */
@@ -32,16 +35,56 @@ class SimklIdResolver(private val client: OkHttpClient) {
     private val json: Json by injectLazy()
     private val jikanApi = JikanApi(client)
 
-    suspend fun resolveMalId(simklId: Long, titleFallback: String? = null): Long {
+    suspend fun resolveMalId(
+        simklId: Long,
+        titleFallback: String? = null,
+        trackingUrl: String? = null,
+    ): Long {
         return withIOContext {
-            directLookup(simklId).takeIf { it > 0 }
+            detailLookup(simklId, trackingUrl).takeIf { it > 0 }
+                ?: idLookup(simklId).takeIf { it > 0 }
                 ?: titleLookup(titleFallback)
         }
     }
 
-    private suspend fun directLookup(simklId: Long): Long {
+    /**
+     * Primary source: the detail endpoint carries the full `ids` block
+     * (`mal`, `anilist`, `kitsu`, …). The endpoint segment is derived from the
+     * tracked entry's URL (`/anime/…`, `/tv/…`, `/movies/…`); other segments
+     * are tried as fallback since Simkl answers 404/redirects for mismatches.
+     */
+    private suspend fun detailLookup(simklId: Long, trackingUrl: String?): Long {
+        for (endpoint in endpointsFor(trackingUrl)) {
+            val malId = try {
+                val url = "$API_URL/$endpoint/$simklId?extended=full&client_id=${SimklApi.CLIENT_ID}"
+                with(json) {
+                    client.newCall(GET(url))
+                        .awaitSuccess()
+                        .parseAs<SimklDetailResult>()
+                        .extractMalId()
+                }
+            } catch (e: Exception) {
+                logcat(LogPriority.WARN, e) {
+                    "SimklIdResolver: detail lookup failed for simkl=$simklId ($endpoint)"
+                }
+                0
+            }
+            if (malId > 0) return malId
+        }
+        return 0
+    }
+
+    private fun endpointsFor(trackingUrl: String?): List<String> {
+        return when (trackingUrl?.substringAfter("/")?.substringBefore("/")?.lowercase()) {
+            "movies", "movie" -> listOf("movies", "anime", "shows")
+            "tv", "shows", "show" -> listOf("shows", "anime", "movies")
+            else -> listOf("anime", "shows", "movies")
+        }
+    }
+
+    private suspend fun idLookup(simklId: Long): Long {
         return try {
-            val url = "${SIMKL_ID_LOOKUP_URL}?simkl=$simklId&client_id=${SimklApi.CLIENT_ID}"
+            val url = "$SIMKL_ID_LOOKUP_URL?simkl=$simklId&client_id=${SimklApi.CLIENT_ID}"
             with(json) {
                 client.newCall(GET(url))
                     .awaitSuccess()
@@ -50,7 +93,7 @@ class SimklIdResolver(private val client: OkHttpClient) {
                     ?.extractMalId() ?: 0
             }
         } catch (e: Exception) {
-            logcat(LogPriority.WARN, e) { "SimklIdResolver: direct MAL lookup failed for simkl=$simklId" }
+            logcat(LogPriority.WARN, e) { "SimklIdResolver: id lookup failed for simkl=$simklId" }
             0
         }
     }
@@ -68,30 +111,40 @@ class SimklIdResolver(private val client: OkHttpClient) {
     }
 
     companion object {
+        const val API_URL = "https://api.simkl.com"
         const val SIMKL_ID_LOOKUP_URL = "https://api.simkl.com/search/id"
         const val JIKAN_DELAY_MS = 400L
     }
+}
+
+/**
+ * Extracts the MAL id from a Simkl cross-ID block. The value is inconsistent:
+ * `mal` may be absent, a bare number/string id, or an object holding `id`.
+ */
+private fun JsonObject.extractMalIdValue(): Long {
+    val mal = get("mal") ?: return 0
+    return try {
+        if (mal is JsonObject) {
+            mal["id"]?.jsonPrimitive?.longOrNull ?: 0
+        } else {
+            mal.jsonPrimitive.longOrNull ?: 0
+        }
+    } catch (_: Exception) {
+        0
+    }
+}
+
+@Serializable
+data class SimklDetailResult(
+    val ids: JsonObject? = null,
+) {
+    fun extractMalId(): Long = ids?.extractMalIdValue() ?: 0
 }
 
 @Serializable
 data class SimklIdLookupResult(
     val ids: JsonObject? = null,
 ) {
-    /**
-     * Extracts the MAL id from the cross-ID block. Simkl is inconsistent here:
-     * `mal` may be absent, a bare number/string id, or an object holding `id`.
-     */
-    fun extractMalId(): Long {
-        val mal = ids?.get("mal") ?: return 0
-        return try {
-            if (mal is JsonObject) {
-                mal["id"]?.jsonPrimitive?.longOrNull ?: 0
-            } else {
-                mal.jsonPrimitive.longOrNull ?: 0
-            }
-        } catch (_: Exception) {
-            0
-        }
-    }
+    fun extractMalId(): Long = ids?.extractMalIdValue() ?: 0
 }
 // <-- AY
