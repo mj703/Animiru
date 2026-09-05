@@ -4,6 +4,10 @@ name: CI / Release
 # (build.yml, build-and-release.yml, release-arm64.yml, release.yml).
 # One trigger set, one test run, one single-arch optimized APK build,
 # one release job. No duplicated checkout/JDK/Gradle/test/build work.
+#
+# Release policy (permanent): every successful build on the main branches,
+# every v* tag, or a manual dispatch with release=true publishes a GitHub
+# Release. Pull requests only test and build — they never release.
 on:
   workflow_dispatch:
     inputs:
@@ -212,8 +216,10 @@ jobs:
               echo "- Release job: WILL RUN (tag push)"
             elif [[ "$EVENT" == "workflow_dispatch" && "$WANT_RELEASE" == "true" ]]; then
               echo "- Release job: WILL RUN (manual dispatch with release=true)"
+            elif [[ "$EVENT" == "push" && ("$REF" == "refs/heads/main" || "$REF" == "refs/heads/animiru-new-main") ]]; then
+              echo "- Release job: WILL RUN (successful main-branch build)"
             else
-              echo "- Release job: SKIPPED (needs a \`v*\` tag push or a manual dispatch with release=true)"
+              echo "- Release job: SKIPPED (pull requests test and build only; releases run on main-branch pushes, \`v*\` tags, or manual dispatch with release=true)"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -222,8 +228,9 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     # NOTE: the `env` context is not available in job `if` conditions,
-    # so the tag/manual-release gate is inlined here.
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release == true)
+    # so the release gate is inlined here. Successful main-branch builds
+    # always release; pull requests never do.
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release == true) || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/animiru-new-main'))
 
     steps:
       - name: Download APK
